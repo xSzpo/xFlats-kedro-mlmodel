@@ -1,0 +1,16 @@
+# Here you can define all your data sets by using simple YAML syntax.
+#
+# Documentation for this file format can be found in "The Data Catalog"
+# Link: https://kedro.readthedocs.io/en/stable/05_data/01_data_catalog.html
+rawflats:
+  type: pandas.JSONDataSet
+  filepath: data/01_raw/flats_all_20210104.jsonline
+  load_args: {'lines':True, 'convert_dates': ['date_created','date_modified','download_date']}
+
+flatsjsonlines:
+  type: xflats.extras.datasets.jsonlines_dataset.JSONLineDataSet
+  filepath: /Users/xszpo/data_store/flats/tmp
+  file_mask: flats_all_202103*
+  drop_columns: ['body']
+  encoding: utf-8
+  schema_path: /Users/xszpo/data_store/flats/schema.json

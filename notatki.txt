@@ -1,0 +1,28 @@
+#'flats_\w+_20\d{6}.jsonline'
+
+gcs = Xszpo.DataSources.GoogleGCS(
+    dir_json_local = data_local_dir_data_download,
+    dir_json_bucket = "flats_jsonlines",
+    file_mask = 'flats_\w+_2020\d{4}.jsonline',
+    exclude_file_name = date.today().strftime("%Y%m%d")
+)
+
+gcs.download_gcs()
+
+
+jr = Xszpo.DataSources.ReadJsonline(
+    dir_json_local = data_local_dir_data_download,
+    file_mask = 'flats_\w+_2020\d{4}.jsonline',
+    drop_columns='body',
+    encoding='utf-8',
+    schema_path="/Users/xszpo/GoogleDrive/01_Projects/202003_xFlats_K8S/data_structure/schema.json")
+
+from xflats.extras.datasets.jsonlines_dataset import JSONLineDataSet
+
+JSONLineDataSet(
+    filepath='/Users/xszpo/data_store/flats/tmp',
+    file_mask='flats_all_202103*'
+)
+
+%%time
+df = jr.alljson2df()
