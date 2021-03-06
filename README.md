@@ -63,6 +63,25 @@ After this, if you'd like to update your project requirements, please update `sr
 >
 > Jupyter, JupyterLab, and IPython are already included in the project requirements by default, so once you have run `kedro install` you will not need to take any extra steps before you use them.
 
+###
+
+Note: The only kernel available by default has a name of the current project. If you need to access all available kernels, add --all-kernels to the command above.
+Add new externale kernel:
+
+Activate conda env:
+```
+conda env activate kedro
+```
+Add new jupyter kernel:
+```
+python -m ipykernel install --user --name kedro_flats_mlmodel --display-name "Python (kedro_flats)"
+```
+Check if kernel is installed:
+```
+jupyter kernelspec list
+```
+
+v
 ### Jupyter
 To use Jupyter notebooks in your Kedro project, you need to install Jupyter:
 

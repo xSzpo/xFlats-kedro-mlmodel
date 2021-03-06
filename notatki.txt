@@ -1,3 +1,4 @@
+
 #'flats_\w+_20\d{6}.jsonline'
 
 gcs = Xszpo.DataSources.GoogleGCS(
