@@ -21,3 +21,9 @@ jsonschema
 pyarrow
 unidecode
 google-cloud-storage
+matplotlib
+seaborn
+scikit-learn
+lightgbm
+eli5
+category_encoders

@@ -1,0 +1,6 @@
+data_set_train_size: 40000
+data_set_test_size: 10000
+data_set_valid_size: 10000
+data_set_hp_train_size: 10000
+data_set_hp_test_size: 3000
+data_set_hp_valid_size: 10000

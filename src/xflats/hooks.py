@@ -35,18 +35,32 @@ from kedro.io import DataCatalog
 from kedro.pipeline import Pipeline
 from kedro.versioning import Journal
 
+from xflats.pipelines import data_processing as dp
+from xflats.pipelines import features as ft
+from xflats.pipelines import model_input as mi
+from xflats.pipelines import hp as hp
+
 
 class ProjectHooks:
     @hook_impl
     def register_pipelines(self) -> Dict[str, Pipeline]:
-        """Register the project's pipeline.
-
+        """Register the project's pipelines.
         Returns:
             A mapping from a pipeline name to a ``Pipeline`` object.
-
         """
+        data_processing_pipeline = dp.create_pipeline()
+        creat_feature_pipeline = ft.create_pipeline()
+        create_data_split = mi.create_pipeline()
+        create_data_split_hp = hp.create_pipeline()
 
-        return {"__default__": Pipeline([])}
+        return {
+            "__default__": data_processing_pipeline + creat_feature_pipeline +
+            create_data_split,
+            "dp": data_processing_pipeline,
+            'features': creat_feature_pipeline,
+            'split': create_data_split,
+            'hp': create_data_split_hp
+            }
 
     @hook_impl
     def register_config_loader(

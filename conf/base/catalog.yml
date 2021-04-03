@@ -2,15 +2,46 @@
 #
 # Documentation for this file format can be found in "The Data Catalog"
 # Link: https://kedro.readthedocs.io/en/stable/05_data/01_data_catalog.html
-rawflats:
-  type: pandas.JSONDataSet
-  filepath: data/01_raw/flats_all_20210104.jsonline
-  load_args: {'lines':True, 'convert_dates': ['date_created','date_modified','download_date']}
-
 flatsjsonlines:
   type: xflats.extras.datasets.jsonlines_dataset.JSONLineDataSet
-  filepath: /Users/xszpo/data_store/flats/tmp
-  file_mask: flats_all_202103*
+  filepath: /Users/xszpo/GoogleDrive/data_store/flats/tmp
+  file_mask: flats_*
   drop_columns: ['body']
   encoding: utf-8
-  schema_path: /Users/xszpo/data_store/flats/schema.json
+  schema_path: /Users/xszpo/GoogleDrive/data_store/flats/schema.json
+  layer: raw
+
+preprocessed_flats:
+  type: pandas.ParquetDataSet
+  filepath: data/03_primary/preprocessed_flats.parquet
+  layer: primary
+
+aggregate_avg_flats_prices:
+  type: pandas.ParquetDataSet
+  filepath: data/04_feature/aggregate_avg_flats_prices.parquet
+  layer: feature
+
+hp_model_input:
+  type: pandas.ParquetDataSet
+  filepath: data/05_model_input/model_input_hp.parquet
+  layer: 05_model_input
+
+hp_train:
+  type: xflats.extras.datasets.numpy_dataset.NumpySet
+  filepath: data/05_model_input/hp_train.npy
+  layer: 05_model_input
+
+hp_test:
+  type: xflats.extras.datasets.numpy_dataset.NumpySet
+  filepath: data/05_model_input/hp_test.npy
+  layer: 05_model_input
+
+hp_valid:
+  type: xflats.extras.datasets.numpy_dataset.NumpySet
+  filepath: data/05_model_input/hp_valid.npy
+  layer: 05_model_input
+
+model_input:
+  type: pandas.ParquetDataSet
+  filepath: data/05_model_input/model_input.parquet
+  layer: 05_model_input
