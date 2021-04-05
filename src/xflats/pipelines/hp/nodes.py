@@ -145,7 +145,7 @@ def _objective(
         y_test: np.ndarray,
         parameters) -> float:
 
-    #experiment_id = _get_experiment()
+    experiment_id = _get_experiment()
 
     mlflow.lightgbm.autolog(log_input_examples=False,
                             log_model_signatures=False,

@@ -51,15 +51,15 @@ class ProjectHooks:
         data_processing_pipeline = dp.create_pipeline()
         creat_feature_pipeline = ft.create_pipeline()
         create_data_split = mi.create_pipeline()
-        create_data_split_hp = hp.create_pipeline()
+        hyper_opt = hp.create_pipeline()
 
         return {
             "__default__": data_processing_pipeline + creat_feature_pipeline +
-            create_data_split,
+            create_data_split + hyper_opt,
             "dp": data_processing_pipeline,
             'features': creat_feature_pipeline,
             'split': create_data_split,
-            'hp': create_data_split_hp
+            'hp': hyper_opt
             }
 
     @hook_impl
