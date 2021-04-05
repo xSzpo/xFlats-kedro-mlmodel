@@ -20,5 +20,8 @@ dependencies:
   - zlib=1.2.11=h1de35cc_3
   - pip:
     - kedro==0.17.1
-    - 
+    - mlflow==1.15.0
+    - kedro-mlflow==0.7.0
+    - kedro-viz==3.10.1
+    - hyperopt==0.2.5
 prefix: /Users/xszpo/opt/anaconda3/envs/kedro

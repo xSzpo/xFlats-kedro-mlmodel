@@ -1,4 +1,16 @@
 # xflats
+## start
+`conda actvivate kedro`
+`kedro jupyter noteboo`
+`kedro mlflow ui`
+
+## kedro - mlfow
+
+Note: For now, the kedro mlflow new command is not implemented. You must use `kedro new` to create a project, and then call `kedro mlflow init` inside this new project.
+
+setup `mlflow_tracking_uri: sqlite:///data/mlflow.db` in `conf\local`
+
+https://github.com/Galileo-Galilei/kedro-mlflow-tutorial
 
 ## Overview
 

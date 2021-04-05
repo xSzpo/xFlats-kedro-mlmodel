@@ -1,6 +1,18 @@
-data_set_train_size: 40000
+data_set_train_size: 30000
 data_set_test_size: 10000
 data_set_valid_size: 10000
-data_set_hp_train_size: 10000
-data_set_hp_test_size: 3000
-data_set_hp_valid_size: 10000
+hp_params:
+  hp_number_of_experiments: 1
+  learning_rate: [0.001, 0.5]
+  max_bin: [100, 10000]
+  max_depth: [2, 25]
+  min_data_in_leaf: [10, 150]
+  num_leaves: [10, 300]
+  lambda_l1: [0.0, 0.5]
+  lambda_l2: [0.0, 2.0]
+  bagging_fraction: [0.3, 1.0]
+  bagging_freq: [1, 10]
+  feature_fraction: [0.3, 1.0]
+  num_boost_round: 300
+  verbose_eval: False
+  early_stopping_rounds: 10

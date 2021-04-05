@@ -1,4 +1,8 @@
 ##########################
+# ML Flow
+mlruns/**
+
+##########################
 # KEDRO PROJECT
 
 # ignore all local configuration

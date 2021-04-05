@@ -2,75 +2,45 @@ from typing import Dict, Tuple
 
 import re
 from unidecode import unidecode
+import random
+from unidecode import unidecode
+import warnings
+
 import numpy as np
 import pandas as pd
 from pandas.tseries.offsets import Week
-import random
+
 import scipy
-
-from unidecode import unidecode
-
 from sklearn.pipeline import make_pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 import category_encoders as ce
+import logging
 
-import warnings
+from functools import partial
+from kedro.config import ConfigLoader
+from hyperopt import fmin, hp, tpe
+import lightgbm as lgb
+import mlflow
+from mlflow import log_metric, log_params
+from mlflow.lightgbm import log_model
+from mlflow.tracking import MlflowClient
+
+from sklearn.metrics import mean_absolute_error, mean_squared_log_error
+from sklearn.metrics import r2_score, median_absolute_error, \
+    mean_absolute_percentage_error, mean_absolute_error, mean_squared_error
+
+
+logger = logging.getLogger(__name__)
+
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 
 
-def split_data(df: pd.DataFrame,
-               df_aggr: pd.DataFrame,
-               parameters: Dict) -> pd.DataFrame:
-    """Splits data into features and targets training, test, valid sets.
-    Args:
-        df: Data containing features and target.
-        df_aggr: Data containing edditional features, join on=['GC_addr_suburb','market','date_offer_w']
-        parameters: Parameters defined in parameters.yml.
-    Returns:
-        Split data.
-    """
-
-    df['date_offer_d'] = df.date_offer.dt.floor("D")
-    df['date_offer_w'] = df['date_offer_d'] + Week(weekday=6)
-    df = df.merge(df_aggr, how='left',
-                  on=['GC_addr_suburb', 'market', 'date_offer_w'])
-
-    random.seed(666)
-
-    ds_tr = parameters["data_set_hp_train_size"]
-    ds_te = parameters["data_set_hp_test_size"]
-    ds_val = parameters["data_set_hp_valid_size"]
-
-    idx_valid = list(df.sort_values('date_offer').index[:ds_val])
-    idx_tt = (df.sort_values('date_offer').index[ds_val:])
-    idx_tt = random.sample(set(idx_tt), ds_tr+ds_te)
-    idx_train = idx_tt[:ds_tr]
-    idx_test = idx_tt[ds_tr:]
-
-    df_train = df.loc[idx_train].reset_index(drop=True)
-    df_test = df.loc[idx_test].reset_index(drop=True)
-    df_valid = df.loc[idx_valid].reset_index(drop=True)
-
-    drop_cols = ['tracking_id', 'price_m2', 'download_date',
-                 'download_date_utc', 'date_created', 'date_modified',
-                 'GC_boundingbox', 'GC_addr_road', 'GC_addr_city',
-                 'GC_addr_state', 'GC_addr_country', 'GC_addr_country_code',
-                 'prediction', 'date_offer_d', 'date_offer_w']
-
-    X_train = df_train.drop(columns=drop_cols)
-    X_train['split'] = 'train'
-    X_test = df_test.drop(columns=drop_cols)
-    X_test['split'] = 'test'
-    X_valid = df_valid.drop(columns=drop_cols)
-    X_valid['split'] = 'valid'
-
-    return pd.concat([X_train, X_test, X_valid], axis=0)
-
-
 def transform_data_hp(df: pd.DataFrame) \
-        -> Tuple[scipy.sparse.csr.csr_matrix, scipy.sparse.csr.csr_matrix, scipy.sparse.csr.csr_matrix]:
+        -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray,
+                 np.ndarray, np.ndarray]:
 
     X_train = df.loc[df.split == 'train'].drop(columns=['split', 'price']). \
         reset_index(drop=True)
@@ -89,8 +59,11 @@ def transform_data_hp(df: pd.DataFrame) \
     cols_ce_te = ['GC_addr_suburb', 'GC_addr_postcode']
 
     cols_numeric = ['flat_size', 'rooms', 'floor', 'number_of_floors',
-                    'year_of_building', 'GC_latitude', 'GC_longitude',
-                    'price_median_08w']
+                    'year_of_building', 'GC_latitude', 'GC_longitude']
+
+    cols_prices_in_neighbourhood = ['price_median_03w', 'price_median_08w',
+                                    'price_median_12w', 'price_mean_03w',
+                                    'price_mean_08w', 'price_mean_12w']
 
     stop_words = ['ale', 'oraz', 'lub', 'sie', 'and', 'the', 'jest', 'do',
                   'od', 'with', 'mozna']
@@ -104,7 +77,7 @@ def transform_data_hp(df: pd.DataFrame) \
         ColumnTransformer([
             ('ce_oh', ce.OneHotEncoder(return_df=True, use_cat_names=True), cols_ce_oh),
             ('ce_GC', ce.TargetEncoder(return_df=True), cols_ce_te),
-            ('numeric', 'passthrough', cols_numeric),
+            ('numeric', 'passthrough', cols_numeric + cols_prices_in_neighbourhood),
             ('txt_description', TfidfVectorizer(lowercase=True,
                                                 ngram_range=(1, 3),
                                                 stop_words=stop_words,
@@ -131,4 +104,120 @@ def transform_data_hp(df: pd.DataFrame) \
     X_test_transformed = pipe.transform(X_test)
     X_valid_transformed = pipe.transform(X_valid)
 
-    return X_train_transformed, X_test_transformed, X_valid_transformed
+    return X_train_transformed, X_test_transformed, X_valid_transformed, \
+        y_train, y_test, y_valid
+
+
+def lgb_hp(X_train: np.ndarray,
+           X_test: np.ndarray,
+           y_train: np.ndarray,
+           y_test: np.ndarray) -> Dict:
+
+    return 1
+
+
+def _get_experiment() -> str:
+    conf_paths = ["./conf/local", "./conf/base"]
+    conf_loader = ConfigLoader(conf_paths=conf_paths)
+    conf_mlflow = conf_loader.get("mlflow.yml")
+    experiment_name = conf_mlflow\
+        .get("experiment").get("name")
+    client = MlflowClient(tracking_uri=conf_mlflow.get("tracking_uri"))
+    experiments = client.list_experiments()
+    lista = list(filter(lambda x: x.name == experiment_name, experiments))
+    return lista[0].experiment_id if len(lista) > 0 else 0
+
+
+def _get_tracking_uri() -> str:
+    conf_paths = ["./conf/local", "./conf/base"]
+    conf_loader = ConfigLoader(conf_paths=conf_paths)
+    conf_mlflow = conf_loader.get("mlflow.yml")
+    experiment_name = conf_mlflow\
+        .get("experiment").get("name")
+    return conf_mlflow.get("mlflow_tracking_uri")
+
+
+def _objective(
+        params: Dict,
+        X_train: np.ndarray,
+        X_test: np.ndarray,
+        y_train: np.ndarray,
+        y_test: np.ndarray,
+        parameters) -> float:
+
+    #experiment_id = _get_experiment()
+
+    mlflow.lightgbm.autolog(log_input_examples=False,
+                            log_model_signatures=False,
+                            log_models=True,
+                            disable=False,
+                            exclusive=False,
+                            disable_for_unsupported_versions=False,
+                            silent=False)
+
+    with mlflow.start_run(experiment_id=experiment_id, nested=True):
+        params['deterministic'] = True
+        params['objective'] = "regression_l2"
+        params['boosting'] = "gbdt"
+        params['metric'] = ['l1', 'mape']
+        params['seed'] = '666'
+
+        train_params = {
+            'num_boost_round': parameters['num_boost_round'],
+            'verbose_eval': parameters['verbose_eval'],
+            'early_stopping_rounds': parameters['early_stopping_rounds'],
+        }
+
+        train_data = lgb.Dataset(X_train, label=y_train, params={'verbose': -1})
+        test_data = lgb.Dataset(X_test, label=y_test, params={'verbose': -1})
+
+        model = lgb.train(
+            params,
+            train_data,
+            valid_sets=[train_data, test_data],
+            valid_names=['train', 'valid'],
+            **train_params,
+        )
+
+        y_pred = model.predict(X_test)
+
+        r2 = r2_score(y_test, y_pred)
+        mape = mean_absolute_percentage_error(y_test, y_pred)
+        mae = median_absolute_error(y_test, y_pred)
+        mse = mean_squared_error(y_test, y_pred)
+
+        return mae
+
+
+def hp_tuning(
+        X_train: np.ndarray,
+        X_test: np.ndarray,
+        y_train: np.ndarray,
+        y_test: np.ndarray,
+        parameters: Dict) -> Dict:
+
+    space = {
+        "learning_rate": hp.uniform("learning_rate", parameters["learning_rate"][0], parameters["learning_rate"][1]),
+        "max_bin": hp.randint("max_bin", parameters["max_bin"][0], parameters["max_bin"][1]),
+        "max_depth": hp.randint("max_depth", parameters["max_depth"][0], parameters["max_depth"][1]),
+        "min_data_in_leaf": hp.randint("min_data_in_leaf", parameters["min_data_in_leaf"][0], parameters["min_data_in_leaf"][1]),
+        "num_leaves": hp.randint("num_leaves", parameters["num_leaves"][0], parameters["num_leaves"][1]),
+        "lambda_l1": hp.uniform("lambda_l1", parameters["lambda_l1"][0], parameters["lambda_l1"][1]),
+        "lambda_l2": hp.uniform("lambda_l2", parameters["lambda_l2"][0], parameters["lambda_l2"][1]),
+        "bagging_fraction": hp.uniform("bagging_fraction", parameters["bagging_fraction"][0], parameters["bagging_fraction"][1]),
+        "bagging_freq": hp.randint("bagging_freq", parameters["bagging_freq"][0], parameters["bagging_freq"][1]),
+        "feature_fraction": hp.uniform("feature_fraction", parameters["feature_fraction"][0], parameters["feature_fraction"][1]),
+        }
+
+    best = fmin(
+        partial(_objective, X_train=X_train, X_test=X_test, y_train=y_train,
+                y_test=y_test, parameters=parameters),
+        space,
+        algo=tpe.suggest,
+        max_evals=parameters["hp_number_of_experiments"])
+
+    for k in best:
+        if type(best[k]) != str:
+            best[k] = str(best[k])
+
+    return best

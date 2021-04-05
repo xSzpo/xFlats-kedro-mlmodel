@@ -48,7 +48,7 @@ class NumpySet(AbstractVersionedDataSet):
         """
         # using get_filepath_str ensures that the protocol and path are appended correctly for different filesystems
         load_path = get_filepath_str(self._get_load_path(), self._protocol)
-        with self._fs.open(load_path, mode="r") as f:
+        with self._fs.open(load_path, mode="rb") as f:
             numpy_array = np.load(f, allow_pickle=True)
         return numpy_array
 
