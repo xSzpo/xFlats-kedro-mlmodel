@@ -45,7 +45,7 @@ def split_data(df: pd.DataFrame,
                  'download_date_utc', 'date_created', 'date_modified',
                  'GC_boundingbox', 'GC_addr_road', 'GC_addr_city',
                  'GC_addr_state', 'GC_addr_country', 'GC_addr_country_code',
-                 'prediction', 'date_offer_d', 'date_offer_w']
+                 'date_offer_d', 'date_offer_w']
 
     X_train = df_train.drop(columns=drop_cols)
     X_train['split'] = 'train'

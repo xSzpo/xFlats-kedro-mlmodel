@@ -26,6 +26,7 @@ from mlflow import log_metric, log_params
 from mlflow.lightgbm import log_model
 from mlflow.tracking import MlflowClient
 
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_log_error
 from sklearn.metrics import r2_score, median_absolute_error, \
     mean_absolute_percentage_error, mean_absolute_error, mean_squared_error
@@ -139,9 +140,11 @@ def _get_tracking_uri() -> str:
 
 def _objective(
         params: Dict,
-        X_train: np.ndarray,
+        X_train_hs: np.ndarray,
+        X_valid_hs: np.ndarray,
         X_test: np.ndarray,
-        y_train: np.ndarray,
+        y_train_hs: np.ndarray,
+        y_valid_hs: np.ndarray,
         y_test: np.ndarray,
         parameters) -> float:
 
@@ -159,7 +162,7 @@ def _objective(
         params['deterministic'] = True
         params['objective'] = "regression_l2"
         params['boosting'] = "gbdt"
-        params['metric'] = ['l1', 'mape']
+        params['metric'] = ['l2', 'l1', 'mape']
         params['seed'] = '666'
 
         train_params = {
@@ -168,25 +171,30 @@ def _objective(
             'early_stopping_rounds': parameters['early_stopping_rounds'],
         }
 
-        train_data = lgb.Dataset(X_train, label=y_train, params={'verbose': -1})
-        test_data = lgb.Dataset(X_test, label=y_test, params={'verbose': -1})
+        train_data = lgb.Dataset(X_train_hs, label=y_train_hs, params={'verbose': -1})
+        valid_data = lgb.Dataset(X_valid_hs, label=y_valid_hs, params={'verbose': -1})
 
         model = lgb.train(
             params,
             train_data,
-            valid_sets=[train_data, test_data],
+            valid_sets=[train_data, valid_data],
             valid_names=['train', 'valid'],
             **train_params,
         )
 
-        y_pred = model.predict(X_test)
+        y_pred = model.predict(X_valid_hs)
 
-        r2 = r2_score(y_test, y_pred)
-        mape = mean_absolute_percentage_error(y_test, y_pred)
-        mae = median_absolute_error(y_test, y_pred)
-        mse = mean_squared_error(y_test, y_pred)
+        r2_valid = r2_score(y_valid_hs, y_pred)
+        r2_test = r2_score(y_test, model.predict(X_test))
 
-        return mae
+        mape = mean_absolute_percentage_error(y_valid_hs, y_pred)
+        mae = median_absolute_error(y_valid_hs, y_pred)
+        mse = mean_squared_error(y_valid_hs, y_pred)
+
+        mlflow.log_metric("r2_valid", r2_valid)
+        mlflow.log_metric("r2_test", r2_test)
+
+        return mse
 
 
 def hp_tuning(
@@ -209,9 +217,20 @@ def hp_tuning(
         "feature_fraction": hp.uniform("feature_fraction", parameters["feature_fraction"][0], parameters["feature_fraction"][1]),
         }
 
+    # create holdout sets / valid
+    X_train_hs, X_valid_hs, y_train_hs, y_valid_hs = train_test_split(
+        X_train, y_train, test_size=parameters["holdout_set_prc"],
+        random_state=666)
+
     best = fmin(
-        partial(_objective, X_train=X_train, X_test=X_test, y_train=y_train,
-                y_test=y_test, parameters=parameters),
+        partial(_objective,
+                X_train_hs=X_train_hs,
+                X_valid_hs=X_valid_hs,
+                X_test=X_test,
+                y_train_hs=y_train_hs,
+                y_valid_hs=y_valid_hs,
+                y_test=y_test,
+                parameters=parameters),
         space,
         algo=tpe.suggest,
         max_evals=parameters["hp_number_of_experiments"])
