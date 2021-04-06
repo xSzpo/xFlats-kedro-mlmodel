@@ -55,7 +55,7 @@ class ProjectHooks:
 
         return {
             "__default__": data_processing_pipeline + creat_feature_pipeline +
-            create_data_split + hyper_opt,
+            create_data_split,
             "dp": data_processing_pipeline,
             'features': creat_feature_pipeline,
             'split': create_data_split,

@@ -200,9 +200,9 @@ class ReadJsonline:
                     else:
                         dtypes[key] = str
                 elif 'number' in tmp['type']:
-                    dtypes[key] = np.float64
+                    dtypes[key] = np.float32
                 elif 'integer' in tmp['type']:
-                    dtypes[key] = np.int64
+                    dtypes[key] = np.float32
                 else:
                     dtypes[key] = str
 
@@ -215,9 +215,9 @@ class ReadJsonline:
                     else:
                         dtypes[key] = str
                 elif tmp['type'] == 'number':
-                    dtypes[key] = np.float64
+                    dtypes[key] = np.float32
                 elif tmp['type'] == 'integer':
-                    dtypes[key] = np.int64
+                    dtypes[key] = np.float32
                 else:
                     dtypes[key] = str
 
@@ -242,7 +242,7 @@ class ReadJsonline:
         data = list()
         file_path = os.path.join(self.dir_json_local, filename)
 
-        with codecs.open(file_path, mode='r', encoding='utf-8') as file:
+        with codecs.open(file_path, mode='r', encoding=self.encoding) as file:
 
             for i, line in enumerate(file):
 
@@ -271,19 +271,27 @@ class ReadJsonline:
                     logger.debug(("file {filename}, line {i} error: " +
                                  "{e}").format(filename=filename, i=i, e=e))
 
-        tmp_df = pd.DataFrame(data, columns=self.dtypes)
+        tmp_dtypes = self.dtypes.copy()
+        tmp_col = pd.DataFrame.from_dict(data[:1]).columns
+
+        for c in self.dtypes:
+            if c not in tmp_col:
+                tmp_dtypes.pop(c)
+
+        tmp_df = pd.DataFrame.from_dict(data).astype(tmp_dtypes)
 
         if self.dates:
             for date in self.dates:
-                tmp_df[date] = pd.to_datetime(tmp_df[date]). \
-                    astype("datetime64[ms]")
+                if date in tmp_col:
+                    tmp_df[date] = pd.to_datetime(tmp_df[date]). \
+                        astype("datetime64[ms]")
 
         return tmp_df
 
     def __read_one_jsonline_deprecated(self, filename):
         try:
             df = pd.read_json(os.path.join(self.dir_json_local, filename),
-                              orient='records',
+                              orient='table',
                               lines=True,
                               dtype=self.dtypes,
                               encoding=self.encoding,
